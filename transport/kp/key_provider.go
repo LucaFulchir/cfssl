@@ -22,6 +22,7 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
+	"golang.org/x/crypto/ed25519"
 	"io/ioutil"
 	"strings"
 
@@ -242,8 +243,29 @@ func (sp *StandardProvider) Generate(algo string, size int) (err error) {
 		sp.internal.keyPEM = pem.EncodeToMemory(p)
 
 		sp.internal.priv = priv
+	case "ed25519":
+		var priv ed25519.PrivateKey
+
+		_, priv, err = ed25519.GenerateKey(rand.Reader)
+		if err != nil {
+			return err
+		}
+
+		var keyPEM []byte
+		keyPEM, err = x509.MarshalPKCS8PrivateKey(priv)
+		if err != nil {
+			return err
+		}
+
+		p := &pem.Block{
+			Type:  "ED25119 PRIVATE KEY",
+			Bytes: keyPEM,
+		}
+		sp.internal.keyPEM = pem.EncodeToMemory(p)
+
+		sp.internal.priv = priv
 	default:
-		return errors.New("transport: invalid key algorithm; only RSA and ECDSA are supported")
+		return errors.New("transport: invalid key algorithm; only RSA, ECDSA and ED25519 are supported")
 	}
 
 	return nil
@@ -322,6 +344,11 @@ func (sp *StandardProvider) Load() (err error) {
 	case *ecdsa.PublicKey:
 		if p.Type != "EC PRIVATE KEY" {
 			err = errors.New("transport: PEM type " + p.Type + " is invalid for an ECDSA key")
+			return
+		}
+	case ed25519.PublicKey:
+		if p.Type != "ED25519 PRIVATE KEY" {
+			err = errors.New("transport: PEM type " + p.Type + " is invalid for an ED25519 key")
 			return
 		}
 	default:

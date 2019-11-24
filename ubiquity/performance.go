@@ -12,14 +12,14 @@ import (
 )
 
 // Compute the priority of different hash algorithm based on security
-// SHA2 > SHA1 >> MD = Others = Unknown
+// Ed25519 == SHA2 > SHA1 >> MD = Others = Unknown
 func hashPriority(cert *x509.Certificate) int {
 	switch cert.SignatureAlgorithm {
 	case x509.ECDSAWithSHA1, x509.DSAWithSHA1, x509.SHA1WithRSA:
 		return 10
 	case x509.ECDSAWithSHA256, x509.ECDSAWithSHA384, x509.ECDSAWithSHA512,
 		x509.DSAWithSHA256, x509.SHA256WithRSA, x509.SHA384WithRSA,
-		x509.SHA512WithRSA:
+		x509.SHA512WithRSA, x509.PureEd25519:
 		return 100
 	default:
 		return 0
@@ -27,9 +27,11 @@ func hashPriority(cert *x509.Certificate) int {
 }
 
 // Compute the priority of different key algorithm based performance and security
-// ECDSA>RSA>DSA>Unknown
+// Ed25519>ECDSA>RSA>DSA>Unknown
 func keyAlgoPriority(cert *x509.Certificate) int {
 	switch cert.PublicKeyAlgorithm {
+	case x509.Ed25519:
+		return 160
 	case x509.ECDSA:
 		switch cert.PublicKey.(*ecdsa.PublicKey).Curve {
 		case elliptic.P256():

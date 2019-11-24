@@ -12,6 +12,7 @@ import (
 	"encoding/asn1"
 	"encoding/pem"
 	"errors"
+	"golang.org/x/crypto/ed25519"
 	"net"
 	"net/mail"
 	"net/url"
@@ -60,7 +61,7 @@ func (kr *KeyRequest) Size() int {
 }
 
 // Generate generates a key as specified in the request. Currently,
-// only ECDSA and RSA are supported.
+// only ECDSA, RSA and ed25519 are supported.
 func (kr *KeyRequest) Generate() (crypto.PrivateKey, error) {
 	log.Debugf("generate key from request: algo=%s, size=%d", kr.Algo(), kr.Size())
 	switch kr.Algo() {
@@ -85,6 +86,9 @@ func (kr *KeyRequest) Generate() (crypto.PrivateKey, error) {
 			return nil, errors.New("invalid curve")
 		}
 		return ecdsa.GenerateKey(curve, rand.Reader)
+	case "ed25519":
+		_, edPrivkey, err := ed25519.GenerateKey(rand.Reader)
+		return edPrivkey, err
 	default:
 		return nil, errors.New("invalid algorithm")
 	}
@@ -116,6 +120,8 @@ func (kr *KeyRequest) SigAlgo() x509.SignatureAlgorithm {
 		default:
 			return x509.ECDSAWithSHA1
 		}
+	case "ed25519":
+		return x509.PureEd25519
 	default:
 		return x509.UnknownSignatureAlgorithm
 	}
@@ -132,12 +138,12 @@ type CAConfig struct {
 // A CertificateRequest encapsulates the API interface to the
 // certificate request functionality.
 type CertificateRequest struct {
-	CN           string     `json:"CN" yaml:"CN"`
-	Names        []Name     `json:"names" yaml:"names"`
-	Hosts        []string   `json:"hosts" yaml:"hosts"`
+	CN           string      `json:"CN" yaml:"CN"`
+	Names        []Name      `json:"names" yaml:"names"`
+	Hosts        []string    `json:"hosts" yaml:"hosts"`
 	KeyRequest   *KeyRequest `json:"key,omitempty" yaml:"key,omitempty"`
-	CA           *CAConfig  `json:"ca,omitempty" yaml:"ca,omitempty"`
-	SerialNumber string     `json:"serialnumber,omitempty" yaml:"serialnumber,omitempty"`
+	CA           *CAConfig   `json:"ca,omitempty" yaml:"ca,omitempty"`
+	SerialNumber string      `json:"serialnumber,omitempty" yaml:"serialnumber,omitempty"`
 }
 
 // New returns a new, empty CertificateRequest with a
@@ -215,8 +221,15 @@ func ParseRequest(req *CertificateRequest) (csr, key []byte, err error) {
 			Bytes: key,
 		}
 		key = pem.EncodeToMemory(&block)
+	case ed25519.PrivateKey:
+		key, err = x509.MarshalPKCS8PrivateKey(priv)
+		block := pem.Block{
+			Type:  "ED25519 PRIVATE KEY",
+			Bytes: key,
+		}
+		key = pem.EncodeToMemory(&block)
 	default:
-		panic("Generate should have failed to produce a valid key.")
+		panic("Generate should have failed to produce a valid key:")
 	}
 
 	csr, err = Generate(priv.(crypto.Signer), req)

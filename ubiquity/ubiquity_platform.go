@@ -81,6 +81,8 @@ func (p Platform) keyAlgoUbiquity() KeyAlgoUbiquity {
 		return ECDSA384Ubiquity
 	case "ECDSA521":
 		return ECDSA521Ubiquity
+	case "ED25519":
+		return Ed25519Ubiquity
 	default:
 		return UnknownAlgoUbiquity
 	}

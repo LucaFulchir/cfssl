@@ -12,6 +12,7 @@ import (
 	"encoding/pem"
 	goerr "errors"
 	"fmt"
+	"golang.org/x/crypto/ed25519"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -589,15 +590,24 @@ func (b *Bundler) Bundle(certs []*x509.Certificate, key crypto.Signer, flavor Bu
 			if cert.PublicKey.(*ecdsa.PublicKey).X.Cmp(ecdsaPublicKey.X) != 0 {
 				return nil, errors.New(errors.PrivateKeyError, errors.KeyMismatch)
 			}
+		case cert.PublicKeyAlgorithm == x509.Ed25519:
+			var ed25519PublicKey ed25519.PublicKey
+			if ed25519PublicKey, ok = key.Public().(ed25519.PublicKey); !ok {
+				return nil, errors.New(errors.PrivateKeyError, errors.KeyMismatch)
+			}
+			if bytes.Compare([]byte(cert.PublicKey.(ed25519.PublicKey)), []byte(ed25519PublicKey)) != 0 {
+				return nil, errors.New(errors.PrivateKeyError, errors.KeyMismatch)
+			}
 		default:
-			return nil, errors.New(errors.PrivateKeyError, errors.NotRSAOrECC)
+			return nil, errors.New(errors.PrivateKeyError, errors.NotRSAOrECCOrEd25519)
 		}
 	} else {
 		switch {
 		case cert.PublicKeyAlgorithm == x509.RSA:
 		case cert.PublicKeyAlgorithm == x509.ECDSA:
+		case cert.PublicKeyAlgorithm == x509.Ed25519:
 		default:
-			return nil, errors.New(errors.PrivateKeyError, errors.NotRSAOrECC)
+			return nil, errors.New(errors.PrivateKeyError, errors.NotRSAOrECCOrEd25519)
 		}
 	}
 

@@ -3,6 +3,7 @@
 package initca
 
 import (
+	"bytes"
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/rand"
@@ -10,6 +11,7 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
+	"golang.org/x/crypto/ed25519"
 	"time"
 
 	"github.com/cloudflare/cfssl/config"
@@ -206,8 +208,17 @@ func RenewFromSigner(ca *x509.Certificate, priv crypto.Signer) ([]byte, error) {
 		if ca.PublicKey.(*ecdsa.PublicKey).X.Cmp(ecdsaPublicKey.X) != 0 {
 			return nil, cferr.New(cferr.PrivateKeyError, cferr.KeyMismatch)
 		}
+	case ca.PublicKeyAlgorithm == x509.Ed25519:
+		var ed25519PublicKey *ed25519.PublicKey
+		var ok bool
+		if ed25519PublicKey, ok = priv.Public().(*ed25519.PublicKey); !ok {
+			return nil, cferr.New(cferr.PrivateKeyError, cferr.KeyMismatch)
+		}
+		if bytes.Compare([]byte(*ca.PublicKey.(*ed25519.PublicKey)), []byte(*ed25519PublicKey)) != 0 {
+			return nil, cferr.New(cferr.PrivateKeyError, cferr.KeyMismatch)
+		}
 	default:
-		return nil, cferr.New(cferr.PrivateKeyError, cferr.NotRSAOrECC)
+		return nil, cferr.New(cferr.PrivateKeyError, cferr.NotRSAOrECCOrEd25519)
 	}
 
 	req := csr.ExtractCertificateRequest(ca)

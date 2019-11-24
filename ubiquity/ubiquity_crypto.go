@@ -20,10 +20,12 @@ type HashUbiquity int
 // the algorithm is.
 type KeyAlgoUbiquity int
 
-// SHA1 is ubiquitous. SHA2 is not supported on some legacy platforms.
+// SHA1 is ubiquitous. SHA2 is not supported on some legacy platforms,
+// Ed25519 even less
 // We consider MD2/MD5 is harmful and thus assign them lowest ubiquity.
 const (
 	UnknownHashUbiquity HashUbiquity = 0
+	PureEd25519Ubiquity HashUbiquity = 30
 	SHA2Ubiquity        HashUbiquity = 70
 	SHA1Ubiquity        HashUbiquity = 100
 	MD5Ubiquity         HashUbiquity = 0
@@ -34,12 +36,14 @@ const (
 // supported by TLS 1.2 and have limited support from TLS 1.0 and
 // 1.1, based on RFC6460, but ECDSA521 is less well-supported as
 // a standard.
+// Ed25519 is tracked by RFC8422, but curernt support is still low
 const (
 	RSAUbiquity         KeyAlgoUbiquity = 100
 	DSAUbiquity         KeyAlgoUbiquity = 100
 	ECDSA256Ubiquity    KeyAlgoUbiquity = 70
 	ECDSA384Ubiquity    KeyAlgoUbiquity = 70
 	ECDSA521Ubiquity    KeyAlgoUbiquity = 30
+	Ed25519Ubiquity     KeyAlgoUbiquity = 30
 	UnknownAlgoUbiquity KeyAlgoUbiquity = 0
 )
 
@@ -56,6 +60,8 @@ func hashUbiquity(cert *x509.Certificate) HashUbiquity {
 		return SHA2Ubiquity
 	case x509.MD5WithRSA, x509.MD2WithRSA:
 		return MD5Ubiquity
+	case x509.PureEd25519:
+		return PureEd25519Ubiquity
 	default:
 		return UnknownHashUbiquity
 	}
@@ -83,6 +89,8 @@ func keyAlgoUbiquity(cert *x509.Certificate) KeyAlgoUbiquity {
 		return UnknownAlgoUbiquity
 	case x509.DSA:
 		return DSAUbiquity
+	case x509.Ed25519:
+		return Ed25519Ubiquity
 	default:
 		return UnknownAlgoUbiquity
 	}

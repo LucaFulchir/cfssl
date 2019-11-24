@@ -15,6 +15,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"golang.org/x/crypto/ed25519"
 	"io/ioutil"
 	"os"
 
@@ -463,6 +464,8 @@ func SignerAlgo(priv crypto.Signer) x509.SignatureAlgorithm {
 		default:
 			return x509.ECDSAWithSHA1
 		}
+	case ed25519.PublicKey:
+		return x509.PureEd25519
 	default:
 		return x509.UnknownSignatureAlgorithm
 	}

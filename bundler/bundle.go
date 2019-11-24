@@ -10,6 +10,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"golang.org/x/crypto/ed25519"
 	"time"
 
 	"github.com/cloudflare/cfssl/helpers"
@@ -108,6 +109,8 @@ func (b *Bundle) MarshalJSON() ([]byte, error) {
 		keyType = fmt.Sprintf("%d-bit RSA", keyLength)
 	case x509.DSA:
 		keyType = "DSA"
+	case x509.Ed25519:
+		keyType = "ed25519"
 	default:
 		keyType = "Unknown"
 	}
@@ -119,6 +122,9 @@ func (b *Bundle) MarshalJSON() ([]byte, error) {
 	case *ecdsa.PrivateKey:
 		keyBytes, _ = x509.MarshalECPrivateKey(key)
 		keyString = PemBlockToString(&pem.Block{Type: "EC PRIVATE KEY", Bytes: keyBytes})
+	case ed25519.PrivateKey:
+		keyBytes, _ = x509.MarshalPKCS8PrivateKey(key)
+		keyString = PemBlockToString(&pem.Block{Type: "ED25519 PRIVATE KEY", Bytes: keyBytes})
 	case fmt.Stringer:
 		keyString = key.String()
 	}
